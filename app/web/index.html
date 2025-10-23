@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Receivables Quote • Backend (FastAPI) • Pamella Ferola</title>
+  <style>
+    :root{--bg:#0b0f19;--panel:#121a2b;--ink:#e7eefc;--muted:#9db1d0;--accent:#ff7a00;--ok:#36c691;--err:#ff5d5d}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f19 0%,#0e1431 100%);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    header{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 16px var(--accent)}
+    h1{font-size:18px;margin:0}
+    main{max-width:980px;margin:24px auto;padding:0 20px;display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    .card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+    h2{margin:0 0 12px 0;font-size:16px;color:#cfe0ff}
+    label{display:block;margin:10px 0 6px 0;color:var(--muted);font-size:13px}
+    input,select,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0e1526;color:var(--ink);font-size:14px}
+    button{cursor:pointer;background:linear-gradient(180deg,#ff8a1a,#ff7a00);border:none;color:#111;font-weight:700;letter-spacing:.3px;margin-top:10px}
+    .muted{color:var(--muted);font-size:13px}
+    code{background:#0c1429;padding:2px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.07)}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+    .kpi{background:#0e1526;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;text-align:center}
+    .kpi h3{margin:0 0 4px 0;font-size:14px;color:#cfe0ff}
+    .kpi p{margin:0;font-weight:700}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+    footer{max-width:980px;margin:8px auto 40px;padding:0 20px;color:var(--muted);font-size:12px}
+    a{color:#9fd0ff}
+    @media (max-width: 860px){ main{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="dot"></div>
+    <h1>Receivables Quote • Backend (FastAPI) • Pamella Ferola</h1>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Simular desconto / antecipação</h2>
+      <label>Valor nominal</label>
+      <input id="valor" type="number" min="1" step="0.01" value="10000" />
+
+      <label>Taxa mensal (fração — ex.: 0.03 = 3%)</label>
+      <input id="taxa" type="number" min="0" max="1" step="0.001" value="0.03" />
+
+      <label>Dias até o vencimento</label>
+      <input id="dias" type="number" min="1" max="365" step="1" value="30" />
+
+      <label>Tipo</label>
+      <select id="tipo">
+        <option value="DESCONTO">DESCONTO</option>
+        <option value="ANTECIPACAO">ANTECIPACAO</option>
+      </select>
+
+      <button id="btn">Calcular</button>
+      <p id="status" class="muted" style="margin-top:8px"></p>
+
+      <div class="kpis">
+        <div class="kpi">
+          <h3>Deságio</h3>
+          <p id="desagio">–</p>
+        </div>
+        <div class="kpi">
+          <h3>IOF</h3>
+          <p id="iof">–</p>
+        </div>
+        <div class="kpi">
+          <h3>Valor líquido</h3>
+          <p id="liquido">–</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Sobre o projeto</h2>
+      <p class="muted">
+        Backend em <strong>FastAPI</strong> com testes, observabilidade (<code>/metrics</code>) e IaC mínima (Terraform).
+        Interface simples para portfólio.
+      </p>
+      <p class="muted">
+        Endpoints: <code>GET /health</code> • <code>POST /receivables/discount/quote</code> •
+        <a href="/docs" target="_blank">/docs</a>
+      </p>
+    </aside>
+  </main>
+
+  <footer>
+    © 2025 • Pamella Ferola • Itaú Backend/DevOps (demo). Python 3.12 + FastAPI.
+  </footer>
+
+  <script>
+    async function postJSON(url, data){
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(data)
+      });
+      if(!res.ok){
+        const e = await res.json().catch(()=>({detail: res.statusText}));
+        throw new Error(e.detail || "Erro na requisição");
+      }
+      return res.json();
+    }
+    const $ = (id)=>document.getElementById(id);
+    $("btn").addEventListener("click", async ()=>{
+      $("status").textContent = "Calculando…";
+      try{
+        const body = {
+          valor_nominal: parseFloat($("valor").value),
+          taxa_mensal: parseFloat($("taxa").value),
+          dias_ate_vencimento: parseInt($("dias").value,10),
+          tipo: $("tipo").value
+        };
+        const r = await postJSON("/receivables/discount/quote", body);
+        $("desagio").textContent = r.desagio.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+        $("iof").textContent = r.iof.toLocaleString("pt-BR",{style:"currency","currency":"BRL"});
+        $("liquido").textContent = r.valor_liquido.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+        $("status").innerHTML = "<span class='ok'>OK</span>: simulação concluída.";
+      }catch(err){
+        $("status").innerHTML = "<span class='err'>Erro</span>: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

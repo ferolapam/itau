@@ -1,0 +1,22 @@
+﻿# Python / venv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / temporários
+*.log
+
+# Node/Java/Eclipse (evitar o problema que você viu)
+node_modules/
+.pnpm-store/
+.target/
+.gradle/
+.mvn/
+.p2/
