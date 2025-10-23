@@ -1,47 +1,24 @@
-# Itaú – Engenharia TI Pleno (Backend Java/Python/AWS)
+# 📡 Itaú — Recebíveis PJ (Backend FastAPI)
 
-Serviço backend completo com FastAPI, testes, CI/CD, observabilidade e Terraform mínimo (AWS).  
-Projeto pronto para execução local no Windows sem necessidade de Docker ou Terraform.
+<p align="center">
+  <img src="app/web/assets/logo.svg" alt="Logo" height="64" />
+</p>
 
-## 🔧 Stack
-- Python 3.12 + FastAPI
-- Testes: pytest
-- Qualidade: black, flake8, isort
-- Observabilidade: Prometheus (`/metrics`)
-- CI/CD: GitHub Actions
-- IaC: Terraform (S3 e DynamoDB demo)
+**Backend em FastAPI** com UI mínima, testes, observabilidade e CI.  
+Simula **desconto/antecipação de recebíveis** para Produtos Ativos PJ (Atacado).
 
-## ▶️ Executar localmente
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:api --reload
-# http://127.0.0.1:8000/docs
-```
+[🧪 Swagger](http://127.0.0.1:8000/docs) · [🖥️ UI](http://127.0.0.1:8000/) · [📈 Métricas](http://127.0.0.1:8000/metrics)
 
-## ▶️ Testes
-```bash
-pytest -q
-```
+![CI](https://github.com/ferolapam/itau/actions/workflows/ci.yml/badge.svg)
 
-## ▶️ Docker (opcional)
-```bash
-docker build -t receivables-backend:dev .
-docker run -p 8000:8000 receivables-backend:dev
-```
+---
 
-## ▶️ Terraform (opcional)
-```bash
-cd terraform
-terraform init
-terraform plan -var="project_name=receivables-demo" -var="region=sa-east-1"
-```
+## 🔧 Exemplo de requisição (POST `/receivables/discount/quote`)
+```json
+{
+  "valor_nominal": 10000,
+  "taxa_mensal": 0.03,
+  "dias_ate_vencimento": 30,
+  "tipo": "DESCONTO"
+}
 
-## Endpoints principais
-- `POST /receivables/discount/quote` → simulação de desconto/antecipação.
-- `GET /health` → status do sistema.
-- `GET /metrics` → métricas Prometheus.
-
-## Licença
-MIT.
