@@ -1,7 +1,7 @@
 # 📡 Itaú — Recebíveis PJ (Backend FastAPI)
 
 <p align="center">
-  <img src="app/web/assets/logo.svg" alt="Logo" height="64" />
+  <img src="app/web/assets/logo.svg" width="420" alt="Logo">
 </p>
 
 **Backend em FastAPI** com UI mínima, testes, observabilidade e CI.  
