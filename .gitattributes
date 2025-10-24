@@ -1,0 +1,4 @@
+# Reduz HTML/CSS na contagem do Linguist (GitHub Languages)
+app/web/*.html linguist-vendored
+app/web/assets/*.css linguist-vendored
+*.zip linguist-vendored
