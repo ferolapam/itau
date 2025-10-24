@@ -1,76 +1,68 @@
 name: ci
 
 on:
-push:
-branches: [main]
-pull_request:
+  push:
+    branches: [ main ]
+  pull_request:
 
 jobs:
-build-test:
-runs-on: ubuntu-latest
-env:
-PYTHONPATH: ${{ github.workspace }}
-
-steps:
-  - uses: actions/checkout@v4
-
-  - uses: actions/setup-python@v5
-    with:
-      python-version: "3.12"
-
-  - name: Install dependencies (inclui requests)
-    run: |
-      python -m pip install --upgrade pip
-      if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -r requisitos.txt; fi
-      # Garante que a biblioteca 'requests' está instalada para o próximo passo.
-      python - <<'PY'
-
-
-import importlib, subprocess, sys
-try:
-importlib.import_module("requests")
-except ImportError:
-subprocess.check_call([sys.executable, "-m", "pip", "install", "requests==2.32.3"])
-PY
-
-  - name: Run tests
-    run: pytest -q
-
-  - name: Notify Datadog (US5)
-    if: always() # Garante que a notificação será enviada mesmo em caso de falha nos testes
+  build-test:
+    runs-on: ubuntu-latest
     env:
-      DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      DD_SITE: ${{ secrets.DD_SITE }}            # deve ser: us5.datadoghq.com
-      GITHUB_STATUS: ${{ job.status }}          # success | failure | cancelled
-      REPO: ${{ github.repository }}
-      RUN_ID: ${{ github.run_id }}
-    run: |
-      # 1. Instala o 'jq' (necessário para montar o JSON payload)
-      sudo apt-get update && sudo apt-get install -y jq
+      PYTHONPATH: ${{ github.workspace }}
 
-      # 2. normaliza o SITE (remove prefixos e sufixos)
-      SITE="${DD_SITE#https://}"
-      SITE="${SITE%/}"
+    steps:
+      - uses: actions/checkout@v4
 
-      # 3. monta payload
-      STATUS="${GITHUB_STATUS:-success}"
-      ALERT="success"
-      if [ "$STATUS" != "success" ]; then ALERT="error"; fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      TITLE="CI • ${REPO} • build-test"
-      TEXT="GitHub Actions run #${RUN_ID} finalizado com status: ${STATUS}"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -r requisitos.txt; fi
 
-      PAYLOAD=$(jq -n --arg title "$TITLE" --arg text "$TEXT" --arg alert "$ALERT" --arg repo "$REPO" \
-        '{title:$title, text:$text, alert_type:$alert, tags:["source:github","env:ci",("repo:"+$repo)]}')
+      - name: Run tests
+        run: pytest -q
 
-      echo "Datadog host resolvido: api.${SITE}"
+      # === Notificação Datadog ===
+      - name: Notify Datadog (US5)
+        if: always()    # roda mesmo se os testes falharem
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}   # Settings > Secrets > Actions
+          DD_SITE:    ${{ secrets.DD_SITE }}      # us5.datadoghq.com  (sem https)
+          GITHUB_STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
 
-      # 4. envia evento (cabeçalho DD-API-KEY, sem query string)
-      curl -sS -X POST "https://api.${SITE}/api/v1/events" \
-        -H "Content-Type: application/json" \
-        -H "DD-API-KEY: ${DD_API_KEY}" \
-        --data "$PAYLOAD" \
-        -o /tmp/dd_resp.json -w "HTTP_STATUS:%{http_code}\n"
+          # normaliza site (remove https:// e / finais)
+          SITE="${DD_SITE#https://}"
+          SITE="${SITE%/}"
+
+          STATUS="${GITHUB_STATUS:-success}"
+          ALERT="success"
+          if [ "$STATUS" != "success" ]; then ALERT="error"; fi
+
+          TITLE="CI • ${REPO} • build-test"
+          TEXT="GitHub Actions run #${RUN_ID} finalizado com status: ${STATUS}"
+
+          # monta JSON com jq (já vem no runner ubuntu)
+          PAYLOAD=$(jq -n --arg title "$TITLE" --arg text "$TEXT" --arg alert "$ALERT" --arg repo "$REPO" \
+            '{title:$title, text:$text, alert_type:$alert, tags:["source:github","env:ci",("repo:"+$repo)]}')
+
+          echo "Datadog host: api.${SITE}"
+          curl -sS -X POST "https://api.${SITE}/api/v1/events" \
+            -H "Content-Type: application/json" \
+            -H "DD-API-KEY: ${DD_API_KEY}" \
+            --data "$PAYLOAD" \
+            -o /tmp/dd_resp.json -w "HTTP_STATUS:%{http_code}\n"
+
+          echo "Resposta:"
+          cat /tmp/dd_resp.json || true
+
 
       echo "Resposta Datadog:"
       cat /tmp/dd_resp.json || true
