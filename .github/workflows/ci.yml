@@ -16,37 +16,48 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install deps
+      - name: Install dependencies (inclui requests)
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -r requisitos.txt; fi
+          # garante requests pro passo do Datadog
+          python - <<'PY'
+          import importlib, subprocess, sys
+          try:
+              importlib.import_module("requests")
+          except ImportError:
+              subprocess.check_call([sys.executable, "-m", "pip", "install", "requests==2.32.3"])
+          PY
 
       - name: Run tests
-        run: |
-          pytest -q
+        run: pytest -q
 
       - name: Notify Datadog (US5)
-        if: always()   # roda mesmo se o pytest falhar
+        if: always()  # roda mesmo se o pytest falhar
         env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}   
-          DD_SITE:     ${{ secrets.DD_SITE }}     # valor = us5.datadoghq.com
-          GITHUB_STATUS: ${{ job.status }}        # success | failure | cancelled
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
+          DD_API_KEY:      ${{ secrets.DD_API_KEY }}
+          DD_SITE:         ${{ secrets.DD_SITE }}   # exemplo: us5.datadoghq.com
+          GITHUB_STATUS:   ${{ job.status }}
+          REPO:            ${{ github.repository }}
+          RUN_ID:          ${{ github.run_id }}
         run: |
           python - <<'PY'
-          import os, requests, json
+          import os, json, requests
           api_key   = os.environ["DD_API_KEY"]
-          site      = os.environ.get("DD_SITE","datadoghq.com")
-          status    = os.environ.get("GITHUB_STATUS","success")
+          site      = os.environ.get("DD_SITE", "datadoghq.com")
+          status    = os.environ.get("GITHUB_STATUS", "success")
           alert     = "success" if status == "success" else "error"
           title     = f"CI • {os.environ.get('REPO')} • build-test"
           text      = f"GitHub Actions run #{os.environ.get('RUN_ID')} finalizado com status: {status}"
-
+          payload = {
+            "title": title,
+            "text": text,
+            "alert_type": alert,
+            "tags": [f"repo:{os.environ.get('REPO')}", "source:github", "env:ci"]
+          }
           url = f"https://api.{site}/api/v1/events?api_key={api_key}"
-          payload = {"title": title, "text": text, "alert_type": alert}
           r = requests.post(url, headers={"Content-Type":"application/json"}, data=json.dumps(payload), timeout=20)
           r.raise_for_status()
           print("Evento enviado ao Datadog:", r.status_code)
